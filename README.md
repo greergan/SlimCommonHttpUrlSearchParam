@@ -21,7 +21,7 @@ CI/CD supplied by unified workflows provided by [SlimLibraryPackager](https://co
   - [SearchParamParseException](#searchparamparseexception)
   - [SearchParam class](#searchparam-class)
   - [Constructors and object lifetime](#constructors-and-object-lifetime)
-  - [Set methods](#set-methods)
+  - [Setters](#setters)
   - [Getters](#getters)
   - [Serialization](#serialization)
 - [Building](#building)
@@ -116,7 +116,7 @@ slim::common::http::SearchParam p;
 
 [↑ Top](#table-of-contents)
 
-### Set methods
+### Setters
 
 Used for raw, unencoded application data. Percent-encodes on store.
 
