@@ -1,0 +1,30 @@
+#ifndef SLIM_COMMON_HTTP_URL_SEARCH_PARAM_H
+#define SLIM_COMMON_HTTP_URL_SEARCH_PARAM_H
+#include <string>
+#include <string_view>
+#include <slim/common/http/error_codes.h>
+#define SLIMCOMMONHTTPURLSEARCHPARAM_VERSION "@SLIMCOMMONHTTPURLSEARCHPARAM_VERSION@"
+#define SLIMCOMMONHTTPURLSEARCHPARAM_GIT_HASH "@SLIMCOMMONHTTPURLSEARCHPARAM_GIT_HASH@"
+namespace slim::common::http {
+    class UrlSearchParam {
+    public:
+        UrlSearchParam() = default;
+        // parse a search param string containing a pair, name=value
+        // decode and put into name_ and value_
+        UrlSearchParam(std::string_view s);
+        // set the name as is
+        ErrorStatus set_name(std::string_view s)    noexcept;
+        // set the value as is
+        ErrorStatus set_value(std::string_view s)   noexcept;
+        // get unencoded name
+        std::string get_name()  const noexcept { return name_; };
+        // get unencoded value
+        std::string get_value() const noexcept { return value_; };
+        // encode name and value during serialize
+        std::string serialize() const;
+    private:
+        std::string name_{};
+        std::string value_{};
+    };
+}
+#endif // SLIM_COMMON_HTTP_URL_SEARCH_PARAM_H
