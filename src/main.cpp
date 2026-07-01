@@ -9,7 +9,6 @@ namespace {
     using slim::common::utilities::is_valid_percent_encoding;
     using slim::common::utilities::percent_decode;
     using slim::common::utilities::percent_encode;
-    using slim::common::utilities::trim;
 
     struct AsciiTables {
         std::array<bool, 256> is_invalid_name_char{};
@@ -19,15 +18,15 @@ namespace {
         constexpr AsciiTables() noexcept {
             for (std::size_t i = 0; i < 256; ++i) {
                 // parse path — pre-encoded wire input
-                // invalid in name: = & + DEL and anything below 0x21
-                is_invalid_name_char[i]      = (i == '=' || i == '&' || i == '+' || i == 0x7F || i < 0x21);
+                // invalid in name: = & DEL and anything below 0x21 except + (+ decodes to space)
+                is_invalid_name_char[i]  = (i == '=' || i == '&' || i == 0x7F || (i < 0x21 && i != '+'));
                 // invalid in value: & DEL and anything below 0x21 except +
                 is_invalid_value_char[i]     = (i == '&' || i == 0x7F || (i < 0x21 && i != '+'));
                 // build path — raw application data, percent_encode handles encoding on serialize
-                // invalid in name: = & (structural delimiters) DEL and control chars
-                is_invalid_name_char_raw[i]  = (i == '=' || i == '&' || i == 0x7F || i < 0x21);
-                // invalid in value: & (structural delimiter) DEL and control chars
-                is_invalid_value_char_raw[i] = (i == '&' || i == 0x7F || i < 0x21);
+                // invalid in name: = & and DEL only
+                is_invalid_name_char_raw[i]  = (i == '=' || i == '&' || i == 0x7F);
+                // invalid in value: & and DEL only
+                is_invalid_value_char_raw[i] = (i == '&' || i == 0x7F);
             }
         }
     };
@@ -35,10 +34,6 @@ namespace {
 
     // Parse path: validates pre-encoded wire input, percent-decodes into out
     ErrorStatus parse_name(std::string_view s, std::string& out) noexcept {
-        trim(s);
-        if (s.empty()) {
-            return ErrorStatus::SearchParamNameEmpty;
-        }
         for (std::size_t i = 0; i < s.size(); ++i) {
             const auto c = static_cast<unsigned char>(s[i]);
             if (c == '%') {
@@ -57,7 +52,6 @@ namespace {
     }
 
     ErrorStatus parse_value(std::string_view s, std::string& out) noexcept {
-        trim(s);
         for (std::size_t i = 0; i < s.size(); ++i) {
             const auto c = static_cast<unsigned char>(s[i]);
             if (c == '%') {
@@ -79,7 +73,6 @@ namespace {
 // Parse path: construct from an already-encoded "name=value" pair off the wire.
 // Validates and percent-decodes into name_ and value_.
 UrlSearchParam::UrlSearchParam(std::string_view s) {
-    trim(s);
     const auto eq = s.find('=');
     if (eq == std::string_view::npos) {
         auto e = parse_name(s, name_);
@@ -102,7 +95,6 @@ UrlSearchParam::UrlSearchParam(std::string_view s) {
 // Build path: validate and store raw unencoded name as-is.
 // Rejects structural delimiters (= &) and control chars; + is allowed as literal application data.
 ErrorStatus UrlSearchParam::set_name(std::string_view s) noexcept {
-    trim(s);
     if (s.empty()) {
         return ErrorStatus::SearchParamNameEmpty;
     }
@@ -114,7 +106,7 @@ ErrorStatus UrlSearchParam::set_name(std::string_view s) noexcept {
     }
     try {
         name_ = s;
-    } catch (...) {
+    } catch (const std::bad_alloc&) {
         return ErrorStatus::BadAllocation;
     }
     return ErrorStatus::OK;
@@ -123,7 +115,6 @@ ErrorStatus UrlSearchParam::set_name(std::string_view s) noexcept {
 // Build path: validate and store raw unencoded value as-is.
 // Rejects structural delimiter (&) and control chars; + and = are allowed as literal application data.
 ErrorStatus UrlSearchParam::set_value(std::string_view s) noexcept {
-    trim(s);
     for (std::size_t i = 0; i < s.size(); ++i) {
         const auto c = static_cast<unsigned char>(s[i]);
         if (ascii.is_invalid_value_char_raw[c]) {
@@ -132,7 +123,7 @@ ErrorStatus UrlSearchParam::set_value(std::string_view s) noexcept {
     }
     try {
         value_ = s;
-    } catch (...) {
+    } catch (const std::bad_alloc&) {
         return ErrorStatus::BadAllocation;
     }
     return ErrorStatus::OK;
@@ -153,7 +144,7 @@ std::string UrlSearchParam::serialize() const {
         out += '=';
         out += value_enc;
         return out;
-    } catch (...) {
+    } catch (const std::bad_alloc&) {
         throw SearchParamParseException(ErrorStatus::BadAllocation);
     }
 }
